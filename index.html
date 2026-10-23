@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Secret Agent Hacker Terminal</title>
+<style>
+html,body{margin:0;height:100%;background:#000;color:#0f0;font-family:Consolas,"Courier New",monospace;overflow:hidden}
+body{display:flex;flex-direction:column;align-items:center}
+header{width:100%;padding:10px 0;text-align:center;background:#111;color:#0ff;font-size:1.2rem;letter-spacing:2px;border-bottom:2px solid #0ff;position:relative;z-index:1}
+main{flex:1;display:flex;flex-direction:column;align-items:center;width:100%;position:relative}
+#matrix{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+#log{position:relative;z-index:1;width:90%;max-width:800px;height:50vh;background:rgba(0,0,0,.7);border:1px solid #0f0;padding:10px;overflow-y:auto;margin-top:20px;box-sizing:border-box;font-size:.9rem}
+.tools{position:relative;z-index:1;display:flex;flex-wrap:wrap;justify-content:center}
+.btn{margin:10px 5px;padding:8px 20px;background:#0ff;color:#000;font-weight:bold;border:none;border-radius:4px;cursor:pointer;box-shadow:0 0 8px #0ff;transition:transform .1s,background .2s}
+.btn:hover{background:#0cc}
+.btn:active{transform:scale(.95)}
+#bar{position:relative;z-index:1;width:90%;max-width:800px;background:#222;height:6px;border-radius:3px;overflow:hidden}
+#fill{width:0;height:100%;background:#0ff}
+#cipher-game{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;padding:20px;border:2px solid #0ff;z-index:5;display:none;flex-direction:column;width:320px;box-sizing:border-box}
+#cipher-game input{margin:5px 0;padding:6px;font-size:1rem;background:#222;color:#0ff;border:none;border-bottom:2px solid #0ff}
+#cipher-output{margin:10px 0;color:#0f0}
+</style>
+</head>
+<body>
+<header id="hdr">Created by Student #112</header>
+<main>
+<canvas id="matrix"></canvas>
+<div id="log"></div>
+<div id="bar"><div id="fill"></div></div>
+<div class="tools">
+<button class="btn" id="scanBtn">Scan</button>
+<button class="btn" id="decryptBtn">Decrypt</button>
+<button class="btn" id="uploadBtn">Upload</button>
+</div>
+</main>
+
+<div id="cipher-game">
+<h3 style="color:#0ff;margin:0">Caesar Cipher Decoder</h3>
+<p style="font-size:.8rem">Hint: decode "KHOOR" with shift 3</p>
+<input id="cipher-input" placeholder="Encrypted text">
+<input id="cipher-shift" type="number" placeholder="Shift (1-25)" min="1" max="25">
+<button class="btn" id="cipher-solve">Decode</button>
+<div id="cipher-output"></div>
+<button class="btn" id="cipher-close">Close</button>
+</div>
+
+<script>
+/* Matrix rain */
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+let w = canvas.width = innerWidth, h = canvas.height = innerHeight;
+let cols = Math.floor(w/20)+1;
+let ypos = Array(cols).fill(0);
+function matrix(){
+  ctx.fillStyle = 'rgba(0,0,0,0.05)';
+  ctx.fillRect(0,0,w,h);
+  ctx.fillStyle = '#0f0';
+  ctx.font = '16px monospace';
+  for(let i=0;i<cols;i++){
+    const t = String.fromCharCode(0x30A0 + Math.random()*96);
+    ctx.fillText(t, i*20, ypos[i]*20);
+    if(ypos[i]*20 > h && Math.random() > 0.975) ypos[i] = 0; else ypos[i]++;
+  }
+}
+setInterval(matrix, 50);
+addEventListener('resize',()=>{w=canvas.width=innerWidth;h=canvas.height=innerHeight;cols=Math.floor(w/20)+1;ypos=Array(cols).fill(0);});
+
+function log(msg){
+  const d = document.getElementById('log');
+  const line = document.createElement('div');
+  line.textContent = msg;
+  d.appendChild(line);
+  d.scrollTop = d.scrollHeight;
+}
+
+// Think of this like a security guard's radio: every button press is a call,
+// the beep is the radio sound, and the bar fills up while the "mission" runs.
+function makeTool(btnId, name, freq){
+  document.getElementById(btnId).addEventListener('click', ()=>{
+    const ac = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    gain.gain.value = 0.1;
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.2);
+
+    const fill = document.getElementById('fill');
+    fill.style.transition = 'none'; fill.style.width = '0';
+    setTimeout(()=>{ fill.style.transition = 'width 1.5s linear'; fill.style.width = '100%'; }, 20);
+
+    log('>> Initiating ' + name + '...');
+    setTimeout(()=>{ log('>> ' + name + ' completed.'); }, 1500);
+  });
+}
+makeTool('scanBtn','Network Scan',440);
+makeTool('decryptBtn','Data Decrypt',550);
+makeTool('uploadBtn','File Upload',660);
+
+/* Hidden cipher game: Ctrl+Alt+H, or click the header */
+const game = document.getElementById('cipher-game');
+document.addEventListener('keydown', e=>{
+  if(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'h') game.style.display = 'flex';
+});
+document.getElementById('hdr').addEventListener('click', ()=>{ game.style.display = 'flex'; });
+document.getElementById('cipher-close').addEventListener('click', ()=>{ game.style.display = 'none'; });
+
+function caesar(text, shift){
+  return text.split('').map(c=>{
+    if(/[a-z]/i.test(c)){
+      const base = c === c.toUpperCase() ? 65 : 97;
+      return String.fromCharCode((c.charCodeAt(0) - base - shift + 26) % 26 + base);
+    }
+    return c;
+  }).join('');
+}
+document.getElementById('cipher-solve').addEventListener('click', ()=>{
+  const t = document.getElementById('cipher-input').value;
+  const s = parseInt(document.getElementById('cipher-shift').value) || 0;
+  const out = caesar(t, s);
+  document.getElementById('cipher-output').textContent = out;
+  if(out.toUpperCase() === 'HELLO') log('>> Secret cipher cracked! Agent 112 wins.');
+});
+
+/* Tests */
+console.assert(caesar('KHOOR', 3) === 'HELLO', 'normal value failed');
+console.assert(caesar('', 3) === '', 'empty input failed');
+console.assert(caesar('ABC', 0) === 'ABC', 'zero shift failed');
+</script>
+</body>
+</html>
